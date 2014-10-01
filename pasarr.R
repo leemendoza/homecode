@@ -18,27 +18,14 @@ if(!require(data.table)){install.packages("data.table")}
 
 ## dates for the sql statement - change as needed
 beginDate = as.character(Sys.Date())
-endDate = as.character(Sys.Date())
+endDate = as.character(Sys.Date() + 60)
 
 
 ## connection to OPTS 
 connOPTS < - odbcDriverConnect("Driver=SQL Server; Server=BHSF-BTR-W359; Database=ParticipantServices; Uid=dbuOPTSReadOnly; Pwd=dbuoptsro;")
 ## get the expiring PASARRs
-sqlStr = as.character("SELECT t_Person.perID AS 'OPTS ID'
-    	 , REPLACE(t_Person.SSN, '-', '') AS 'SSN'
-	     , t_Person.nameLast + ', ' + t_Person.nameFirst AS 'Client'
-         , a.medicalEndDate AS 'Date Expiring'
-         , NFTypes.eligibilityType AS 'Type'
-         FROM     t_PASARR a
-         INNER JOIN t_NursingFacilityEligibilityTypes NFTypes ON a.medicalEligibilityTypeID = NFTypes.eligibilityTypeID 
-         INNER JOIN t_Person ON a.personID = t_Person.perID
-         WHERE NFTypes.eligibilityType = 'Hospital Exemption'
-                      --AND
-                      --a.medicalEndDate >= @IntervalStartDate
-                      --AND 
-                      --a.medicalEndDate < @IntervalEndDate
-                      --ORDER BY a.medicalEndDate")
-optsResult <- sqlQuery(conn, "SELECT * FROM TableName")
+sqlStr = paste("SELECT t_Person.perID AS 'OPTS ID', REPLACE(t_Person.SSN, '-', '') AS 'SSN', t_Person.nameLast + ', ' + t_Person.nameFirst AS 'Client', a.medicalEndDate AS 'Date Expiring', NFTypes.eligibilityType AS 'Type' FROM t_PASARR a INNER JOIN t_NursingFacilityEligibilityTypes NFTypes ON a.medicalEligibilityTypeID = NFTypes.eligibilityTypeID INNER JOIN t_Person ON a.personID = t_Person.perID WHERE NFTypes.eligibilityType = 'Hospital Exemption' AND a.medicalEndDate >= ", beginDate, " AND a.medicalEndDate < ", endDate, " ORDER BY a.medicalEndDate")
+optsResult <- sqlQuery(connOPTS, sqlStr)
 odbcClose(connOPTS)
 dim(optsResult)
 
