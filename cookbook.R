@@ -92,4 +92,49 @@ byYear2 = melt(avgDispMpg, id = "year")
 ## that created "year variable value", so lets do some subs on the levels of the variable
 levels(byYear2$variable) = c("Average MPG", "Avg Displacement")
 
+## create a panel plot. This will create a plot for each variable. the 'scales = 
+## free_y' is important - this lets each variable use it's own scale for the y axis
+ggplot(byYear2, aes(year, value)) +
+    geom_point() +
+    geom_smooth() + 
+    facet_wrap(~variable, ncol = 1, scales = "free_y")
 
+## are automatic or manual transmissions more efficient for four cylinder engines?
+gasCars4 = subset(gasCars, cylinders == "4")
+ggplot(gasCars4, aes(factor(year), comb08)) +
+    geom_boxplot() + 
+    facet_wrap(~trany2, ncol = 1) +
+    theme(axis.text.x = element_text(angle = 45)) +
+    labs(x = "Year", y = "MPG")
+
+## look at the proportion of manual cars each year
+ggplot(gasCars4, aes(factor(year), fill = factor(trany2))) +
+    geom_bar(position = "fill") +
+    labs(x = "Year", y = "Proportion of cars", fill = "Transmission") +
+    theme(axis.text.x = element_text(angle = 45)) +
+    geom_hline(yintercept = 0.5, linetype = 2)
+
+## investigating the makes and models of the automobiles
+carsMake = ddply(gasCars4, ~year, summarise, numberOfMakes = length(unique(make)))
+
+ggplot(carsMake, aes(year, numberOfMakes)) +
+    geom_point() +
+    labs(x = "Year", y = "Number of available makes") +
+    ggtitle("Four cylinder cars")
+
+## let's look at efficiency for each manufacturer for each year
+## this gets the car manufacturers for each year...
+uniqMakes = dlply(gasCars4, ~year, function(x) unique(x$make))
+## this gets the manufacturers in common for every year
+commonMakes = Reduce(intersect, uniqMakes)
+
+## get the fuel efficiency of these manufacturers
+commonCars = subset(gasCars4, make %in% commonMakes)
+## get year, make, and avg mileage
+commonMpg = ddply(commonCars, ~year + make, summarise, avgMPG = mean(comb08))
+
+## plot all that
+ggplot(commonMpg, aes(year, avgMPG)) +
+    geom_line() + 
+    geom_smooth(method = "lm") +
+    facet_wrap(~make, nrow = 3)
