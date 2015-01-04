@@ -2,6 +2,9 @@ library(plyr)
 library(ggplot2)
 library(reshape2)
 
+####################################################################################
+## Start Chapter 2
+####################################################################################
 setwd("~/GitHub/HomeCode")
 veh = read.csv("data\\vehicles.csv", stringsAsFactors = FALSE, sep = ",", na.strings = "")
 dim(veh)
@@ -138,3 +141,96 @@ ggplot(commonMpg, aes(year, avgMPG)) +
     geom_line() + 
     geom_smooth(method = "lm") +
     facet_wrap(~make, nrow = 3)
+#######################################################################
+## End Chapter 2
+#######################################################################
+#######################################################################
+## Chapter 3
+#######################################################################
+library(XML)
+library(RSQLite)
+library(stringr)
+library(ggplot2)
+
+## the year for our stats. Even though 2014 is in the books, we'll use 2013 cause
+## we'll check against the book
+year = 2013
+
+## get offensive stats from yahoo sports
+url = paste("http://sports.yahoo.com/nfl/stats/byteam?group=Offense&cat=Total&conference=NFL&year=season_", year, "&sort=530&old_category=Total&old_group=Offense")
+offense = readHTMLTable(url, encoding = "UTF-8", colClasses="character")[[7]]
+## get rid of blank columns
+offense = offense[, -c(2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28)]
+## convert team names from factor to character
+offense[,1] = as.character(offense[,1])
+## convert stats to numbers
+offense[,2:13] = apply(offense[,2:13], 2, as.numeric)
+
+## convert time of possession string into minutes
+offense[,14] = as.numeric(substr(offense[,14], 1, 2))*60 + as.numeric(substr(offense[,14], 4,6))
+
+## get defensive stats from yahoo sports
+url = paste("http://sports.yahoo.com/nfl/stats/byteam?group=Defense&cat=Total&conference=NFL&year=season_", year, "&sort=530&old_category=Total&old_group=Defense")
+defense = readHTMLTable(url, encoding = "UTF-8", colClasses="character")[[7]]
+## get rid of blank columns
+defense = defense[, -c(2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28)]
+## convert team names from factor to character
+defense[,1] = as.character(defense[,1])
+## convert stats to numbers
+defense[,2:13] = apply(defense[,2:13], 2, as.numeric)
+
+## merge the offense and defense data frames
+combined = merge(offense, defense, by.x = "Team", by.y = "Team")
+## rename columns
+colnames(combined)[2] = "Games"
+colnames(combined)[3] = "OffPPG"
+colnames(combined)[4] = "OffYPG"
+colnames(combined)[5] = "OffPassYPG"
+colnames(combined)[6] = "OffRushYPG"
+combined$G.y = NULL
+colnames(combined)[15] = "DefPPG"
+colnames(combined)[16] = "DefYPG"
+colnames(combined)[17] = "DefRushYPG"
+colnames(combined)[18] = "DefPassYPG"
+
+## take a look at a histogram of offensive points
+hist(combined$OffPPG, breaks = 10, main="Offensive Points Per Game", ylab = "Number of Teams")
+mean(combined$OffPPG)
+sd(combined$OffPPG)
+summary(combined$OffPPG)
+
+## points allowed per game
+hist(combined$DefPPG, breaks = 10, main="Defensive Points Per Game", ylab = "Number of Teams")
+
+## number of first downs per game
+hist(combined$"1stD/G", breaks = 10, main="Offensive 1st Downs Per Game", xlab="1st Downs/Game")
+
+hist(combined$"OffYPG", xlim = c(250, 500), breaks = 20, main="Offensive Yards Per Game", xlab="Yards/Game")
+
+## bar chart for offensive points per game
+ppg = transform(combined, Team=reorder(Team, combined$OffPPG))
+ggplot(ppg, aes(x=Team, y=OffPPG)) +
+    geom_bar(stat = 'identity', color = "black", fill = "blue") +
+    coord_flip() + labs(x = "Team", y = "Avg Points Per Game")
+
+## defensive yards allowed per game
+ypg = transform(combined, Team = reorder(Team, -combined$DefYPG))
+ggplot(ypg, aes(x=Team, y=DefYPG)) + 
+    geom_bar(stat = 'identity', color = "black", fill = "blue") +
+    coord_flip() + labs(x = "Team", y = "Avg Yards Allowed Per Game")
+
+## scatterplots!!!
+ggplot(combined, aes(x = combined$OffYPG, y = combined$OffPPG)) +
+    geom_point(shape=5, size=2) +
+    geom_smooth() +
+    labs(x = "Yards Per Game", y = "Points Per Game")
+
+## correlation
+cor(combined$OffYPG, combined$OffPPG)
+
+ggplot(combined, aes(x = combined$DefYPG, y = combined$DefPPG)) +
+    geom_point(shape=5, size=2) +
+    geom_smooth() +
+    labs(x = "Yards Allowed Per Game", y = "Points Allowed Per Game")
+
+cor(combined$DefYPG, combined$DefPPG)
